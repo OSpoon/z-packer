@@ -1,0 +1,123 @@
+import { createWriteStream } from 'node:fs'
+import { basename, join } from 'node:path'
+import process from 'node:process'
+import archiver from 'archiver'
+import fs from 'fs-extra'
+import { globby } from 'globby'
+
+export interface FileStatus {
+  name: string
+  size: number
+  status: 'OK' | 'ERROR'
+}
+
+export interface CompressResult {
+  zipName: string
+  outputPath: string
+  totalSize: number
+  files: FileStatus[]
+}
+
+export interface CompressOptions {
+  input: string
+  output?: string
+  name?: string
+  onScan?: (absoluteInput: string) => void
+  onFound?: (count: number) => void
+  onStart?: (outputPath: string) => void
+  onProgress?: (current: number, total: number) => void
+  onEntry?: (file: string, size: number) => void
+}
+
+export async function compress(options: CompressOptions): Promise<CompressResult> {
+  const { input, output = '.', name } = options
+
+  const absoluteInput = join(process.cwd(), input)
+
+  let projectName = basename(absoluteInput)
+  let projectVersion = ''
+
+  const pkgPath = join(absoluteInput, 'package.json')
+  if (await fs.pathExists(pkgPath)) {
+    try {
+      const pkg = await fs.readJson(pkgPath)
+      if (pkg.name)
+        projectName = pkg.name
+      if (pkg.version)
+        projectVersion = `_v${pkg.version}`
+    }
+    catch {
+      // Ignore
+    }
+  }
+
+  const zipName = name || `${projectName}${projectVersion}.zip`
+  const outputPath = join(process.cwd(), output, zipName)
+
+  options.onScan?.(absoluteInput)
+
+  const files = await globby(['**/*', `!${zipName}`], {
+    cwd: absoluteInput,
+    gitignore: true,
+    dot: true,
+  })
+
+  options.onFound?.(files.length)
+
+  if (files.length === 0) {
+    return {
+      zipName,
+      outputPath,
+      totalSize: 0,
+      files: [],
+    }
+  }
+
+  options.onStart?.(outputPath)
+
+  const outputStream = createWriteStream(outputPath)
+  const archive = archiver('zip', {
+    zlib: { level: 9 },
+  })
+
+  const fileResults: FileStatus[] = []
+
+  return new Promise<CompressResult>((resolve, reject) => {
+    outputStream.on('close', () => {
+      const stats = fs.statSync(outputPath)
+      resolve({
+        zipName,
+        outputPath,
+        totalSize: stats.size,
+        files: fileResults,
+      })
+    })
+
+    archive.on('error', (err) => {
+      reject(err)
+    })
+
+    archive.on('entry', () => {
+      // Handled in the loop for more control
+    })
+
+    archive.pipe(outputStream)
+
+    ;(async () => {
+      let current = 0
+      for (const file of files) {
+        const filePath = join(absoluteInput, file)
+        const stats = await fs.stat(filePath)
+        const content = await fs.readFile(filePath)
+
+        archive.append(content, { name: file })
+
+        current++
+        fileResults.push({ name: file, size: stats.size, status: 'OK' })
+        options.onEntry?.(file, stats.size)
+        options.onProgress?.(current, files.length)
+      }
+      archive.finalize()
+    })().catch(reject)
+  })
+}

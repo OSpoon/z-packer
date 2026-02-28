@@ -1,42 +1,68 @@
-# pkg-placeholder
+# z-packer
 
 [![npm version][npm-version-src]][npm-version-href]
 [![npm downloads][npm-downloads-src]][npm-downloads-href]
 [![bundle][bundle-src]][bundle-href]
-[![JSDocs][jsdocs-src]][jsdocs-href]
 [![License][license-src]][license-href]
 
-_description_
+A CLI tool to compress code projects while strictly respecting your `.gitignore`.
 
-## Note for Developers
+## Features
 
-This starter recommands using [npm Trusted Publisher](https://github.com/e18e/ecosystem-issues/issues/201), where the release is done on CI to ensure the security of the packages.
+- 🛠️ **Universal Support**: Works for any Git-managed project (Node.js, Python, Rust, C++, Go, etc.).
+- 🔍 **Strict Filtering**: Automatically reads and follows `.gitignore` rules in the root and subdirectories.
+- 🛡️ **Recursion Prevention**: Intelligently excludes the archive being generated while preserving other existing zip files.
+- 📦 **Clean Archive**: Only packages necessary source files, excluding build artifacts and dependencies.
+- 📊 **Visual Feedback**: Real-time progress bar and a detailed file summary table.
+- 🚀 **Professional UX**: Powered by `archiver`, `globby`, and `chalk` for a premium terminal experience.
 
-To do so, you need to run `pnpm publish` manually for the very first time to create the package on npm, and then go to `https://www.npmjs.com/package/<your-package-name>/access` to set the connection to your GitHub repo.
+## Usage
 
-Then for the future releases, you can run `pnpm run release` to do the release and the GitHub Actions will take care of the release process.
+You can run `z-packer` directly without installation using `npx`:
 
-## Sponsors
+```bash
+npx z-packer [directory]
+```
 
-<p align="center">
-  <a href="https://cdn.jsdelivr.net/gh/antfu/static/sponsors.svg">
-    <img src='https://cdn.jsdelivr.net/gh/antfu/static/sponsors.svg'/>
-  </a>
-</p>
+Or install it globally:
+
+```bash
+pnpm add -g z-packer
+# then
+z-packer .
+```
+
+### Options
+
+| Option | Description |
+| :--- | :--- |
+| `input` | Target directory to archive (defaults to `.`) |
+| `--help` | Show help information |
+| `--version` | Show version number |
+
+## Development
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build the project
+pnpm run build
+
+# Run in development
+pnpm start pack .
+```
 
 ## License
 
-[MIT](./LICENSE) License © [Anthony Fu](https://github.com/antfu)
+[MIT](./LICENSE) License © 2024-PRESENT [OSpoon](https://github.com/OSpoon)
 
 <!-- Badges -->
-
-[npm-version-src]: https://img.shields.io/npm/v/pkg-placeholder?style=flat&colorA=080f12&colorB=1fa669
-[npm-version-href]: https://npmjs.com/package/pkg-placeholder
-[npm-downloads-src]: https://img.shields.io/npm/dm/pkg-placeholder?style=flat&colorA=080f12&colorB=1fa669
-[npm-downloads-href]: https://npmjs.com/package/pkg-placeholder
-[bundle-src]: https://img.shields.io/bundlephobia/minzip/pkg-placeholder?style=flat&colorA=080f12&colorB=1fa669&label=minzip
-[bundle-href]: https://bundlephobia.com/result?p=pkg-placeholder
-[license-src]: https://img.shields.io/github/license/antfu/pkg-placeholder.svg?style=flat&colorA=080f12&colorB=1fa669
-[license-href]: https://github.com/antfu/pkg-placeholder/blob/main/LICENSE
-[jsdocs-src]: https://img.shields.io/badge/jsdocs-reference-080f12?style=flat&colorA=080f12&colorB=1fa669
-[jsdocs-href]: https://www.jsdocs.io/package/pkg-placeholder
+[npm-version-src]: https://img.shields.io/npm/v/z-packer?style=flat&colorA=080f12&colorB=1fa669
+[npm-version-href]: https://npmjs.com/package/z-packer
+[npm-downloads-src]: https://img.shields.io/npm/dm/z-packer?style=flat&colorA=080f12&colorB=1fa669
+[npm-downloads-href]: https://npmjs.com/package/z-packer
+[bundle-src]: https://img.shields.io/bundlephobia/minzip/z-packer?style=flat&colorA=080f12&colorB=1fa669&label=minzip
+[bundle-href]: https://bundlephobia.com/result?p=z-packer
+[license-src]: https://img.shields.io/github/license/OSpoon/z-packer.svg?style=flat&colorA=080f12&colorB=1fa669
+[license-href]: https://github.com/OSpoon/z-packer/blob/main/LICENSE
