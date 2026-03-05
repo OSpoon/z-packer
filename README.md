@@ -5,6 +5,8 @@
 [![bundle][bundle-src]][bundle-href]
 [![License][license-src]][license-href]
 
+[中文文档](./README.zh-CN.md)
+
 Pack your project into zip / tar / tar.gz, gitignore-aware, deploy-ready.
 
 ## Features
