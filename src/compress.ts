@@ -18,10 +18,13 @@ export interface CompressResult {
   files: FileStatus[]
 }
 
+export type CompressFormat = 'zip' | 'tar' | 'tar.gz'
+
 export interface CompressOptions {
   input: string
   output?: string
   name?: string
+  format?: CompressFormat
   onScan?: (absoluteInput: string) => void
   onFound?: (count: number) => void
   onStart?: (outputPath: string) => void
@@ -29,8 +32,17 @@ export interface CompressOptions {
   onEntry?: (file: string, size: number) => void
 }
 
+function getExtension(format: CompressFormat): string {
+  switch (format) {
+    case 'tar': return '.tar'
+    case 'tar.gz': return '.tar.gz'
+    case 'zip':
+    default: return '.zip'
+  }
+}
+
 export async function compress(options: CompressOptions): Promise<CompressResult> {
-  const { input, output = '.', name } = options
+  const { input, output = '.', name, format = 'zip' } = options
 
   const absoluteInput = join(process.cwd(), input)
 
@@ -51,7 +63,8 @@ export async function compress(options: CompressOptions): Promise<CompressResult
     }
   }
 
-  const zipName = name || `${projectName}${projectVersion}.zip`
+  const ext = getExtension(format)
+  const zipName = name || `${projectName}${projectVersion}${ext}`
   const outputPath = join(process.cwd(), output, zipName)
 
   options.onScan?.(absoluteInput)
@@ -76,9 +89,18 @@ export async function compress(options: CompressOptions): Promise<CompressResult
   options.onStart?.(outputPath)
 
   const outputStream = createWriteStream(outputPath)
-  const archive = archiver('zip', {
-    zlib: { level: 9 },
-  })
+
+  let archive: archiver.Archiver
+  if (format === 'zip') {
+    archive = archiver('zip', { zlib: { level: 9 } })
+  }
+  else if (format === 'tar.gz') {
+    archive = archiver('tar', { gzip: true, gzipOptions: { level: 9 } })
+  }
+  else {
+    // tar (no compression)
+    archive = archiver('tar')
+  }
 
   const fileResults: FileStatus[] = []
 

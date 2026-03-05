@@ -5,16 +5,15 @@
 [![bundle][bundle-src]][bundle-href]
 [![License][license-src]][license-href]
 
-A CLI tool to compress code projects while strictly respecting your `.gitignore`.
+Pack your project into zip / tar / tar.gz, gitignore-aware, deploy-ready.
 
 ## Features
 
-- 🛠️ **Universal Support**: Works for any Git-managed project (Node.js, Python, Rust, C++, Go, etc.).
-- 🔍 **Strict Filtering**: Automatically reads and follows `.gitignore` rules in the root and subdirectories.
-- 🛡️ **Recursion Prevention**: Intelligently excludes the archive being generated while preserving other existing zip files.
-- 📦 **Clean Archive**: Only packages necessary source files, excluding build artifacts and dependencies.
-- 📊 **Visual Feedback**: Real-time progress bar and a detailed file summary table.
-- 🚀 **SSH Deploy**: Compress and upload to a remote server in a single command via SSH/SFTP.
+- �️ **Multi-format** — `zip`, `tar`, `tar.gz` via `--format`
+- 🔍 **Gitignore-aware** — respects `.gitignore` rules automatically
+- 🛡️ **Safe** — never includes the archive itself in the archive
+- 📊 **Visual** — progress bar + file summary table
+- 🚀 **Deploy** — compress & upload in one command via SSH/SFTP
 
 ## Usage
 
@@ -40,13 +39,17 @@ z-packer .
 z-packer [directory]
 # or explicitly
 z-packer pack [directory]
+
+# Produce a tar.gz instead of zip
+z-packer pack . --format tar.gz
 ```
 
-| Option | Description |
-| :--- | :--- |
-| `input` | Target directory to archive (defaults to `.`) |
-| `--help` | Show help information |
-| `--version` | Show version number |
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `input` | string | `.` | Target directory to archive |
+| `--format` | string | `zip` | Archive format: `zip` \| `tar` \| `tar.gz` |
+| `--help` | — | — | Show help information |
+| `--version` | — | — | Show version number |
 
 ---
 
@@ -58,18 +61,23 @@ Compress the project **and** upload the resulting archive to a remote server in 
 # Password authentication (upload to /tmp by default)
 z-packer deploy . --host <server> --username <user> --password <pass>
 
+# Upload a tar.gz instead of zip
+z-packer deploy . --host <server> --username <user> --password <pass> --format tar.gz
+
 # Private key authentication, custom remote path, keep local archive
 z-packer deploy . \
   --host <server> \
   --username <user> \
   --private-key ~/.ssh/id_rsa \
   --remote-path /home/deploy/releases \
+  --format tar.gz \
   --keep-local
 ```
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `input` | string | `.` | Project directory to compress |
+| `--format` | string | `zip` | Archive format: `zip` \| `tar` \| `tar.gz` |
 | `--host` | string | — | Remote server hostname or IP (**required**) |
 | `--port` | number | `22` | SSH port |
 | `--username` | string | — | SSH login username (**required**) |
@@ -81,7 +89,7 @@ z-packer deploy . \
 
 > [!NOTE]
 > Either `--password` or `--private-key` must be provided.
-> After upload the local `.zip` is deleted automatically unless `--keep-local` is set.
+> After upload the local archive is deleted automatically unless `--keep-local` is set.
 
 ---
 

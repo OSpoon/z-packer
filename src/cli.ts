@@ -1,3 +1,4 @@
+import type { CompressFormat } from './compress'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
@@ -24,14 +25,22 @@ const instance = yargs(process.argv.slice(2))
           default: '.',
           describe: 'Project directory',
         })
+        .option('format', {
+          type: 'string',
+          default: 'zip',
+          choices: ['zip', 'tar', 'tar.gz'],
+          describe: 'Archive format: zip | tar | tar.gz',
+        })
     },
     async (argv) => {
       const input = argv.input as string
+      const format = argv.format as CompressFormat
       let progressBar: SingleBar | undefined
 
       try {
         const result = await compress({
           input,
+          format,
           onScan: (path) => {
             console.log(chalk.cyan(`🔍 Scanning project: ${chalk.bold(path)}`))
           },
@@ -99,6 +108,12 @@ const instance = yargs(process.argv.slice(2))
           default: '.',
           describe: 'Project directory to compress',
         })
+        .option('format', {
+          type: 'string',
+          default: 'zip',
+          choices: ['zip', 'tar', 'tar.gz'],
+          describe: 'Archive format: zip | tar | tar.gz',
+        })
         .option('host', {
           type: 'string',
           demandOption: true,
@@ -146,6 +161,7 @@ const instance = yargs(process.argv.slice(2))
     },
     async (argv) => {
       const input = argv.input as string
+      const format = argv.format as CompressFormat
       const host = argv.host as string
       const port = argv.port as number
       const username = argv.username as string
@@ -163,6 +179,7 @@ const instance = yargs(process.argv.slice(2))
       try {
         compressResult = await compress({
           input,
+          format,
           onScan: (path) => {
             console.log(chalk.cyan(`🔍 Scanning: ${chalk.bold(path)}`))
           },

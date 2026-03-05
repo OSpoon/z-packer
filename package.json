@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.1.0",
   "packageManager": "pnpm@10.25.0",
-  "description": "A CLI tool to compress code projects while strictly respecting your .gitignore.",
+  "description": "Pack your project into zip / tar / tar.gz, gitignore-aware, deploy-ready.",
   "author": "OSpoon",
   "license": "MIT",
   "homepage": "https://github.com/OSpoon/z-packer#readme",
@@ -12,7 +12,7 @@
     "url": "git+https://github.com/OSpoon/z-packer.git"
   },
   "bugs": "https://github.com/OSpoon/z-packer/issues",
-  "keywords": [],
+  "keywords": ["cli", "compress", "zip", "tar", "archive", "gitignore", "pack", "deploy", "sftp", "ssh"],
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",
