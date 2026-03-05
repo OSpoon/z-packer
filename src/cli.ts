@@ -1,4 +1,5 @@
 import type { CompressFormat } from './compress'
+import type { ZPackerConfig } from './config'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
@@ -9,6 +10,7 @@ import { filesize } from 'filesize'
 import fs from 'fs-extra'
 import yargs from 'yargs'
 import { compress } from './compress'
+import { loadConfig } from './config'
 import { upload } from './upload'
 
 const instance = yargs(process.argv.slice(2))
@@ -27,14 +29,28 @@ const instance = yargs(process.argv.slice(2))
         })
         .option('format', {
           type: 'string',
-          default: 'zip',
           choices: ['zip', 'tar', 'tar.gz'],
-          describe: 'Archive format: zip | tar | tar.gz',
+          describe: 'Archive format: zip | tar | tar.gz (default: zip)',
+        })
+        .option('config', {
+          type: 'string',
+          describe: 'Path to a custom config file (default: .zpackerrc)',
         })
     },
     async (argv) => {
       const input = argv.input as string
-      const format = argv.format as CompressFormat
+
+      // Load config file, CLI args override
+      let cfg: ZPackerConfig = {}
+      try {
+        cfg = loadConfig(argv.config as string | undefined)
+      }
+      catch (err) {
+        console.error(chalk.red(`❌ ${(err as Error).message}`))
+        process.exit(1)
+      }
+
+      const format = (argv.format ?? cfg.format ?? 'zip') as CompressFormat
       let progressBar: SingleBar | undefined
 
       try {
@@ -108,25 +124,25 @@ const instance = yargs(process.argv.slice(2))
           default: '.',
           describe: 'Project directory to compress',
         })
+        .option('config', {
+          type: 'string',
+          describe: 'Path to a custom config file (default: .zpackerrc)',
+        })
         .option('format', {
           type: 'string',
-          default: 'zip',
           choices: ['zip', 'tar', 'tar.gz'],
-          describe: 'Archive format: zip | tar | tar.gz',
+          describe: 'Archive format: zip | tar | tar.gz (default: zip)',
         })
         .option('host', {
           type: 'string',
-          demandOption: true,
           describe: 'Remote server hostname or IP',
         })
         .option('port', {
           type: 'number',
-          default: 22,
-          describe: 'SSH port',
+          describe: 'SSH port (default: 22)',
         })
         .option('username', {
           type: 'string',
-          demandOption: true,
           describe: 'SSH login username',
         })
         .option('password', {
@@ -139,37 +155,56 @@ const instance = yargs(process.argv.slice(2))
         })
         .option('remote-path', {
           type: 'string',
-          default: '/tmp',
-          describe: 'Remote directory to upload the archive into',
+          describe: 'Remote directory to upload the archive into (default: /tmp)',
         })
         .option('keep-local', {
           type: 'boolean',
-          default: false,
           describe: 'Keep the local archive after upload',
         })
         .option('ready-timeout', {
           type: 'number',
-          default: 20000,
-          describe: 'SSH connection ready timeout in milliseconds',
-        })
-        .check((args) => {
-          if (!args.password && !args['private-key']) {
-            throw new Error('Either --password or --private-key must be provided')
-          }
-          return true
+          describe: 'SSH connection ready timeout in milliseconds (default: 20000)',
         })
     },
     async (argv) => {
+      // ── Load & merge config ────────────────────────────────────────────────
+      let cfg: ZPackerConfig = {}
+      try {
+        cfg = loadConfig(argv.config as string | undefined)
+        if (Object.keys(cfg).length > 0) {
+          console.log(chalk.gray('📄 Loaded config from .zpackerrc'))
+        }
+      }
+      catch (err) {
+        console.error(chalk.red(`❌ ${(err as Error).message}`))
+        process.exit(1)
+      }
+
+      // CLI args take precedence over config file
       const input = argv.input as string
-      const format = argv.format as CompressFormat
-      const host = argv.host as string
-      const port = argv.port as number
-      const username = argv.username as string
-      const password = argv.password as string | undefined
-      const privateKey = argv['private-key'] as string | undefined
-      const remotePath = argv['remote-path'] as string
-      const keepLocal = argv['keep-local'] as boolean
-      const readyTimeout = argv['ready-timeout'] as number
+      const format = (argv.format ?? cfg.format ?? 'zip') as CompressFormat
+      const host = (argv.host as string | undefined) ?? cfg.host
+      const port = (argv.port as number | undefined) ?? cfg.port ?? 22
+      const username = (argv.username as string | undefined) ?? cfg.username
+      const password = (argv.password as string | undefined) ?? cfg.password
+      const privateKeyPath = (argv['private-key'] as string | undefined) ?? cfg.privateKey
+      const remotePath = (argv['remote-path'] as string | undefined) ?? cfg.remotePath ?? '/tmp'
+      const keepLocal = (argv['keep-local'] as boolean | undefined) ?? cfg.keepLocal ?? false
+      const readyTimeout = (argv['ready-timeout'] as number | undefined) ?? cfg.readyTimeout ?? 20000
+
+      // ── Validate required fields after merge ───────────────────────────────
+      if (!host) {
+        console.error(chalk.red('❌ Missing required option: --host (or set "host" in .zpackerrc)'))
+        process.exit(1)
+      }
+      if (!username) {
+        console.error(chalk.red('❌ Missing required option: --username (or set "username" in .zpackerrc)'))
+        process.exit(1)
+      }
+      if (!password && !privateKeyPath) {
+        console.error(chalk.red('❌ Missing auth: provide --password or --private-key (or set in .zpackerrc)'))
+        process.exit(1)
+      }
 
       let progressBar: SingleBar | undefined
 
@@ -232,12 +267,12 @@ const instance = yargs(process.argv.slice(2))
 
       // Resolve private key content if supplied as a path
       let resolvedPrivateKey: string | undefined
-      if (privateKey) {
+      if (privateKeyPath) {
         try {
-          resolvedPrivateKey = readFileSync(privateKey, 'utf-8')
+          resolvedPrivateKey = readFileSync(privateKeyPath, 'utf-8')
         }
         catch {
-          console.error(chalk.red(`❌ Cannot read private key: ${privateKey}`))
+          console.error(chalk.red(`❌ Cannot read private key: ${privateKeyPath}`))
           process.exit(1)
         }
       }

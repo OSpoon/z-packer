@@ -12,7 +12,18 @@
     "url": "git+https://github.com/OSpoon/z-packer.git"
   },
   "bugs": "https://github.com/OSpoon/z-packer/issues",
-  "keywords": ["cli", "compress", "zip", "tar", "archive", "gitignore", "pack", "deploy", "sftp", "ssh"],
+  "keywords": [
+    "cli",
+    "compress",
+    "zip",
+    "tar",
+    "archive",
+    "gitignore",
+    "pack",
+    "deploy",
+    "sftp",
+    "ssh"
+  ],
   "sideEffects": false,
   "exports": {
     ".": "./dist/index.mjs",

@@ -33,7 +33,52 @@ z-packer .
 
 ---
 
+## Configuration
+
+To avoid typing SSH credentials on every `deploy` run, create a `.zpackerrc` file in your project directory (or `~/.zpackerrc` as a global default).
+
+```ini
+# .zpackerrc — key=value format, # lines are comments
+
+host=192.168.1.100
+port=22
+username=deploy
+password=secret
+# or use a private key instead of password:
+# privateKey=~/.ssh/id_rsa
+
+remotePath=/home/deploy/releases
+format=tar.gz
+keepLocal=false
+readyTimeout=20000
+```
+
+**Lookup order** (first found wins):
+
+1. Path given by `--config`
+2. `.zpackerrc` in the current directory
+3. `~/.zpackerrc` in your home directory
+
+> [!IMPORTANT]
+> CLI arguments always override values from the config file.
+> Add `.zpackerrc` to `.gitignore` to keep credentials out of version control.
+
+| Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `host` | string | — | Remote server hostname or IP |
+| `port` | number | `22` | SSH port |
+| `username` | string | — | SSH login username |
+| `password` | string | — | SSH password |
+| `privateKey` | string | — | Path to SSH private key file (supports `~`) |
+| `remotePath` | string | `/tmp` | Remote directory to upload the archive into |
+| `format` | string | `zip` | Archive format: `zip` \| `tar` \| `tar.gz` |
+| `keepLocal` | boolean | `false` | Keep the local archive after a successful upload |
+| `readyTimeout` | number | `20000` | SSH connection ready timeout (ms) |
+
+---
+
 ### `pack` — Compress only (default)
+
 
 ```bash
 z-packer [directory]
