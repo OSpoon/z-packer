@@ -9,9 +9,11 @@ import { compress } from './compress'
 import { loadConfig } from './config'
 import { upload } from './upload'
 
+console.error('[z-packer] MCP script loading...')
+
 const server = new McpServer({
   name: 'z-packer',
-  version: '0.1.0',
+  version: '0.2.1',
 })
 
 // --- Tool: get_config ---

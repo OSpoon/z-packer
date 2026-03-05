@@ -37,6 +37,7 @@
     "z-packer-mcp": "./bin/z-packer-mcp.mjs"
   },
   "files": [
+    "bin",
     "dist"
   ],
   "scripts": {
