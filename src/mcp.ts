@@ -1,7 +1,5 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import process from 'node:process'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
@@ -20,9 +18,18 @@ const server = new McpServer({
 server.registerTool(
   'z_packer_get_config',
   {
-    description: 'Read the current z-packer configuration (from .zpackerrc or ~/.zpackerrc)',
+    description: [
+      'Read the z-packer configuration for the current project.',
+      'Call this tool FIRST before packing or deploying to discover pre-configured SSH credentials,',
+      'remote paths, archive format, and other settings stored in .zpackerrc.',
+      'Returns a JSON object with all available configuration keys.',
+      'If no config is found, returns an empty object — the user must then provide credentials manually.',
+    ].join(' '),
     inputSchema: z.object({
-      configPath: z.string().optional().describe('Path to a custom config file'),
+      configPath: z.string().optional().describe(
+        'Absolute or relative path to a custom .zpackerrc config file. '
+        + 'Omit this to auto-search in the current directory and the user home directory (~/.zpackerrc).',
+      ),
     }),
   },
   async ({ configPath }): Promise<CallToolResult> => {
@@ -45,11 +52,24 @@ server.registerTool(
 server.registerTool(
   'z_packer_pack',
   {
-    description: 'Compress the project into a zip, tar, or tar.gz archive',
+    description: [
+      'Compress a local project directory into a zip, tar, or tar.gz archive.',
+      'This tool respects .gitignore rules and automatically excludes the output archive itself.',
+      'Use this when the user wants to package their project without deploying it.',
+      'On success, returns the archive file name, output path, and total size in bytes.',
+    ].join(' '),
     inputSchema: z.object({
-      input: z.string().default('.').describe('Project directory to compress'),
-      format: z.enum(['zip', 'tar', 'tar.gz']).default('zip').describe('Archive format'),
-      name: z.string().optional().describe('Output file name (optional)'),
+      input: z.string().default('.').describe(
+        'Path to the project directory to compress. Defaults to the current working directory ("."). '
+        + 'Use an absolute path for clarity, e.g. "/Users/alice/my-project".',
+      ),
+      format: z.enum(['zip', 'tar', 'tar.gz']).default('zip').describe(
+        'Archive format. Use "zip" for broad compatibility, "tar.gz" for smaller files on Linux servers.',
+      ),
+      name: z.string().optional().describe(
+        'Custom base name for the output archive file (without extension). '
+        + 'If omitted, the name is auto-generated from the project name and version.',
+      ),
     }),
   },
   async ({ input, format, name }): Promise<CallToolResult> => {
@@ -76,17 +96,43 @@ server.registerTool(
 server.registerTool(
   'z_packer_deploy',
   {
-    description: 'Compress the project and upload to a remote server via SSH/SFTP',
+    description: [
+      'Compress the project into an archive and upload it to a remote server over SSH/SFTP in one step.',
+      'This tool automatically: (1) packs the project into an archive; (2) uploads it to the remote server; (3) deletes the local archive unless keepLocal is true.',
+      'Use this when the user wants to deploy their project to a server.',
+      'IMPORTANT: either "password" or "privateKeyPath" must be provided for SSH authentication.',
+      'Call z_packer_get_config first to check if SSH credentials are already stored in .zpackerrc.',
+      'On success, returns the remote file path. On failure, returns an error message describing the cause.',
+    ].join(' '),
     inputSchema: z.object({
-      input: z.string().default('.').describe('Project directory to compress'),
-      format: z.enum(['zip', 'tar', 'tar.gz']).default('zip').describe('Archive format'),
-      host: z.string().describe('Remote server hostname or IP'),
-      port: z.number().default(22).describe('SSH port'),
-      username: z.string().describe('SSH login username'),
-      password: z.string().optional().describe('SSH password'),
-      privateKeyPath: z.string().optional().describe('Path to SSH private key file'),
-      remotePath: z.string().default('/tmp').describe('Remote directory to upload into'),
-      keepLocal: z.boolean().default(false).describe('Keep the local archive after upload'),
+      input: z.string().default('.').describe(
+        'Path to the project directory to compress and deploy. Defaults to current directory (".").',
+      ),
+      format: z.enum(['zip', 'tar', 'tar.gz']).default('zip').describe(
+        'Archive format for the deployment bundle. "tar.gz" is recommended for Linux servers.',
+      ),
+      host: z.string().describe(
+        'Hostname or IP address of the remote SSH server, e.g. "192.168.1.100" or "example.com".',
+      ),
+      port: z.number().default(22).describe(
+        'SSH port number on the remote server. Defaults to 22.',
+      ),
+      username: z.string().describe(
+        'Username for SSH login on the remote server.',
+      ),
+      password: z.string().optional().describe(
+        'Password for SSH authentication. Use this OR privateKeyPath — not both.',
+      ),
+      privateKeyPath: z.string().optional().describe(
+        'Absolute path to a local SSH private key file, e.g. "/Users/alice/.ssh/id_rsa". '
+        + 'Use this OR password — not both.',
+      ),
+      remotePath: z.string().default('/tmp').describe(
+        'Absolute path to the directory on the remote server where the archive will be uploaded.',
+      ),
+      keepLocal: z.boolean().default(false).describe(
+        'If true, the local archive is kept after a successful upload. If false (default), it is deleted.',
+      ),
     }),
   },
   async (args): Promise<CallToolResult> => {
@@ -97,7 +143,8 @@ server.registerTool(
         format: args.format,
       })
 
-      const localFilePath = join(process.cwd(), compressResult.zipName)
+      // outputPath is already an absolute path from compress()
+      const localFilePath = compressResult.outputPath
 
       // 2. Resolve Private Key if provided as path
       let privateKey: string | undefined

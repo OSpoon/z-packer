@@ -60,6 +60,20 @@ Available tools:
 - `z_packer_deploy`: Compress and upload via SSH.
 - `z_packer_get_config`: Read `.zpackerrc` settings.
 
+### Debugging MCP
+
+If the MCP server is not working as expected:
+
+1. **Use MCP Inspector**: This is the official interactive debugger.
+   ```bash
+   npx @modelcontextprotocol/inspector npx -y z-packer mcp
+   ```
+2. **Check Logs**:
+   - MCP uses `stdout` for communication, so **never use `console.log`** for debugging.
+   - Use **`console.error`** for logging; these messages will appear in your client's error logs (e.g., Claude Desktop's logs).
+3. **Verify Locally**:
+   Run `z-packer mcp` in your terminal. You should see `[z-packer] MCP script loading...` and `z-packer MCP server running on stdio`. It will then wait for input (JSON-RPC).
+
 ---
 
 ## Configuration

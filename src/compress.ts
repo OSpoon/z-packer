@@ -1,5 +1,5 @@
 import { createWriteStream } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, isAbsolute, join } from 'node:path'
 import process from 'node:process'
 import archiver from 'archiver'
 import fs from 'fs-extra'
@@ -42,9 +42,14 @@ function getExtension(format: CompressFormat): string {
 }
 
 export async function compress(options: CompressOptions): Promise<CompressResult> {
-  const { input, output = '.', name, format = 'zip' } = options
+  const { input, output, name, format = 'zip' } = options
 
-  const absoluteInput = join(process.cwd(), input)
+  // Support both absolute and relative input paths
+  const absoluteInput = isAbsolute(input) ? input : join(process.cwd(), input)
+  // Default output to the same directory as input, not cwd
+  const absoluteOutput = output
+    ? (isAbsolute(output) ? output : join(process.cwd(), output))
+    : absoluteInput
 
   let projectName = basename(absoluteInput)
   let projectVersion = ''
@@ -65,7 +70,7 @@ export async function compress(options: CompressOptions): Promise<CompressResult
 
   const ext = getExtension(format)
   const zipName = name || `${projectName}${projectVersion}${ext}`
-  const outputPath = join(process.cwd(), output, zipName)
+  const outputPath = join(absoluteOutput, zipName)
 
   options.onScan?.(absoluteInput)
 

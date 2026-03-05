@@ -265,7 +265,7 @@ const instance = yargs(process.argv.slice(2))
 
       let uploadBar: SingleBar | undefined
 
-      const localFilePath = join(process.cwd(), compressResult.zipName)
+      const localFilePath = compressResult.outputPath
 
       // Resolve private key content if supplied as a path
       let resolvedPrivateKey: string | undefined
