@@ -46,7 +46,7 @@ Add this to your `claude_desktop_config.json`:
   "mcpServers": {
     "z-packer": {
       "command": "npx",
-      "args": ["-y", "z-packer-mcp"]
+      "args": ["-y", "z-packer", "z-packer-mcp"]
     }
   }
 }

@@ -1,11 +1,11 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  entry: [
-    'src/index.ts',
-    'src/cli.ts',
-    'src/mcp.ts',
-  ],
+  entry: {
+    index: 'src/index.ts',
+    cli: 'src/cli.ts',
+    mcp: 'src/mcp.ts',
+  },
   format: ['esm'],
   exports: true,
   dts: true,
