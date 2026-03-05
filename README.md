@@ -14,7 +14,7 @@ A CLI tool to compress code projects while strictly respecting your `.gitignore`
 - 🛡️ **Recursion Prevention**: Intelligently excludes the archive being generated while preserving other existing zip files.
 - 📦 **Clean Archive**: Only packages necessary source files, excluding build artifacts and dependencies.
 - 📊 **Visual Feedback**: Real-time progress bar and a detailed file summary table.
-- 🚀 **Professional UX**: Powered by `archiver`, `globby`, and `chalk` for a premium terminal experience.
+- 🚀 **SSH Deploy**: Compress and upload to a remote server in a single command via SSH/SFTP.
 
 ## Usage
 
@@ -32,13 +32,58 @@ pnpm add -g z-packer
 z-packer .
 ```
 
-### Options
+---
+
+### `pack` — Compress only (default)
+
+```bash
+z-packer [directory]
+# or explicitly
+z-packer pack [directory]
+```
 
 | Option | Description |
 | :--- | :--- |
 | `input` | Target directory to archive (defaults to `.`) |
 | `--help` | Show help information |
 | `--version` | Show version number |
+
+---
+
+### `deploy` — Compress then upload via SSH/SFTP
+
+Compress the project **and** upload the resulting archive to a remote server in one step.
+
+```bash
+# Password authentication (upload to /tmp by default)
+z-packer deploy . --host <server> --username <user> --password <pass>
+
+# Private key authentication, custom remote path, keep local archive
+z-packer deploy . \
+  --host <server> \
+  --username <user> \
+  --private-key ~/.ssh/id_rsa \
+  --remote-path /home/deploy/releases \
+  --keep-local
+```
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `input` | string | `.` | Project directory to compress |
+| `--host` | string | — | Remote server hostname or IP (**required**) |
+| `--port` | number | `22` | SSH port |
+| `--username` | string | — | SSH login username (**required**) |
+| `--password` | string | — | Password authentication |
+| `--private-key` | string | — | Path to SSH private key file (e.g. `~/.ssh/id_rsa`) |
+| `--remote-path` | string | `/tmp` | Remote directory to upload the archive into |
+| `--keep-local` | boolean | `false` | Keep the local archive after a successful upload |
+| `--ready-timeout` | number | `20000` | SSH connection ready timeout in milliseconds |
+
+> [!NOTE]
+> Either `--password` or `--private-key` must be provided.
+> After upload the local `.zip` is deleted automatically unless `--keep-local` is set.
+
+---
 
 ## Development
 
