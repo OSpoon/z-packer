@@ -139,13 +139,8 @@ server.registerTool(
 )
 
 // Initializing the server with Stdio transport
-async function main(): Promise<void> {
+export async function startServer(): Promise<void> {
   const transport = new StdioServerTransport()
   await server.connect(transport)
   console.error('z-packer MCP server running on stdio')
 }
-
-main().catch((error) => {
-  console.error('MCP server fatal error:', error)
-  process.exit(1)
-})

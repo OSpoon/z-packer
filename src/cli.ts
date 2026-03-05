@@ -12,6 +12,7 @@ import fs from 'fs-extra'
 import yargs from 'yargs'
 import { compress } from './compress'
 import { loadConfig } from './config'
+import { startServer } from './mcp'
 import { upload } from './upload'
 
 const instance = yargs(process.argv.slice(2))
@@ -331,6 +332,18 @@ const instance = yargs(process.argv.slice(2))
       console.log()
     },
   )
+  // ── mcp ──────────────────────────────────────────────────────────────────────
+  .command(
+    'mcp',
+    'Start the z-packer MCP server (for use with Claude Desktop / LM Studio)',
+    () => {},
+    async () => {
+      startServer().catch((error) => {
+        console.error('MCP server fatal error:', error)
+        process.exit(1)
+      })
+    },
+  )
   // ── mcp-path ─────────────────────────────────────────────────────────────────
   .command(
     'mcp-path',
@@ -339,9 +352,6 @@ const instance = yargs(process.argv.slice(2))
     () => {
       const __filename = fileURLToPath(import.meta.url)
       const __dirname = join(__filename, '..')
-      // In dist, cli.mjs and z-packer-mcp.mjs (implicitly from mcp.mjs) should be in the same folder or reachable.
-      // Since bin/z-packer-mcp.mjs points to ../dist/mcp.mjs,
-      // the most reliable path for the user is the one in the bin folder of the package.
       const binPath = resolve(__dirname, '../bin/z-packer-mcp.mjs')
       console.log(binPath)
     },

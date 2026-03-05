@@ -37,23 +37,23 @@ z-packer .
 
 `z-packer` provides an official MCP Server, allowing LLMs (like Claude) to pack and deploy your project directly.
 
-### Usage with Claude Desktop
+### Usage with Claude Desktop / LM Studio
 
-Add this to your `claude_desktop_config.json`:
+Add this to your MCP client config:
 
 ```json
 {
   "mcpServers": {
     "z-packer": {
       "command": "npx",
-      "args": ["-y", "z-packer", "z-packer-mcp"]
+      "args": ["-y", "z-packer", "mcp"]
     }
   }
 }
 ```
 
 > [!TIP]
-> If you are developing locally and want to use your local version, you can run `z-packer mcp-path` to get the absolute path and use `node` as the command.
+> If you have `z-packer` installed globally, you can also use `"command": "z-packer", "args": ["mcp"]` for faster startup.
 
 Available tools:
 - `z_packer_pack`: Compress the project.
