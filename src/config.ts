@@ -19,8 +19,11 @@ export interface ZPackerConfig {
 const CONFIG_FILE = '.zpackerrc'
 
 function expandTilde(p: string): string {
-  if (p.startsWith('~/') || p === '~') {
-    return p.replace('~', homedir())
+  if (p.startsWith('~/')) {
+    return join(homedir(), p.slice(2))
+  }
+  if (p === '~') {
+    return homedir()
   }
   return p
 }
