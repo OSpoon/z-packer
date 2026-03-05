@@ -1,8 +1,9 @@
 import type { CompressFormat } from './compress'
 import type { ZPackerConfig } from './config'
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 import chalk from 'chalk'
 import { Presets, SingleBar } from 'cli-progress'
 import Table from 'cli-table3'
@@ -328,6 +329,21 @@ const instance = yargs(process.argv.slice(2))
       }
 
       console.log()
+    },
+  )
+  // ── mcp-path ─────────────────────────────────────────────────────────────────
+  .command(
+    'mcp-path',
+    'Print the absolute path to the MCP server script',
+    () => {},
+    () => {
+      const __filename = fileURLToPath(import.meta.url)
+      const __dirname = join(__filename, '..')
+      // In dist, cli.mjs and z-packer-mcp.mjs (implicitly from mcp.mjs) should be in the same folder or reachable.
+      // Since bin/z-packer-mcp.mjs points to ../dist/mcp.mjs,
+      // the most reliable path for the user is the one in the bin folder of the package.
+      const binPath = resolve(__dirname, '../bin/z-packer-mcp.mjs')
+      console.log(binPath)
     },
   )
   .showHelpOnFail(false)
