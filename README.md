@@ -9,7 +9,7 @@ Pack your project into zip / tar / tar.gz, gitignore-aware, deploy-ready.
 
 ## Features
 
-- �️ **Multi-format** — `zip`, `tar`, `tar.gz` via `--format`
+- 🗜️ **Multi-format** — `zip`, `tar`, `tar.gz` via `--format`
 - 🔍 **Gitignore-aware** — respects `.gitignore` rules automatically
 - 🛡️ **Safe** — never includes the archive itself in the archive
 - 📊 **Visual** — progress bar + file summary table
