@@ -20,6 +20,11 @@ export interface CompressResult {
 
 export type CompressFormat = 'zip' | 'tar' | 'tar.gz'
 
+export interface ScanResult {
+  files: { name: string, size: number }[]
+  totalSize: number
+}
+
 export interface CompressOptions {
   input: string
   output?: string
@@ -28,7 +33,8 @@ export interface CompressOptions {
   onScan?: (absoluteInput: string) => void
   onFound?: (count: number) => void
   onStart?: (outputPath: string) => void
-  onProgress?: (current: number, total: number) => void
+  onTotalBytes?: (totalBytes: number) => void
+  onProgress?: (currentBytes: number, totalBytes: number, currentFiles: number, totalFiles: number) => void
   onEntry?: (file: string, size: number) => void
 }
 
@@ -39,6 +45,52 @@ function getExtension(format: CompressFormat): string {
     case 'zip':
     default: return '.zip'
   }
+}
+
+/**
+ * Scan a project directory and return all files with their sizes.
+ * Respects .gitignore like the compress function.
+ */
+export async function scan(input: string, format: CompressFormat = 'zip', name?: string): Promise<ScanResult & { zipName: string }> {
+  const absoluteInput = isAbsolute(input) ? input : join(process.cwd(), input)
+
+  let projectName = basename(absoluteInput)
+  let projectVersion = ''
+
+  const pkgPath = join(absoluteInput, 'package.json')
+  if (await fs.pathExists(pkgPath)) {
+    try {
+      const pkg = await fs.readJson(pkgPath)
+      if (pkg.name)
+        projectName = pkg.name
+      if (pkg.version)
+        projectVersion = `_v${pkg.version}`
+    }
+    catch {
+      // Ignore
+    }
+  }
+
+  const ext = getExtension(format)
+  const zipName = name || `${projectName}${projectVersion}${ext}`
+
+  const fileNames = await globby(['**/*', `!${zipName}`], {
+    cwd: absoluteInput,
+    gitignore: true,
+    dot: true,
+  })
+
+  const files: { name: string, size: number }[] = []
+  let totalSize = 0
+
+  for (const file of fileNames) {
+    const filePath = join(absoluteInput, file)
+    const stats = await fs.stat(filePath)
+    files.push({ name: file, size: stats.size })
+    totalSize += stats.size
+  }
+
+  return { files, totalSize, zipName }
 }
 
 export async function compress(options: CompressOptions): Promise<CompressResult> {
@@ -91,6 +143,18 @@ export async function compress(options: CompressOptions): Promise<CompressResult
     }
   }
 
+  // Pre-scan: collect file sizes for byte-level progress
+  const fileSizes: Map<string, number> = new Map()
+  let totalBytes = 0
+  for (const file of files) {
+    const filePath = join(absoluteInput, file)
+    const stats = await fs.stat(filePath)
+    fileSizes.set(file, stats.size)
+    totalBytes += stats.size
+  }
+
+  options.onTotalBytes?.(totalBytes)
+
   options.onStart?.(outputPath)
 
   const outputStream = createWriteStream(outputPath)
@@ -131,18 +195,20 @@ export async function compress(options: CompressOptions): Promise<CompressResult
     archive.pipe(outputStream)
 
     ;(async () => {
-      let current = 0
+      let currentFiles = 0
+      let currentBytes = 0
       for (const file of files) {
         const filePath = join(absoluteInput, file)
-        const stats = await fs.stat(filePath)
+        const size = fileSizes.get(file) || 0
         const content = await fs.readFile(filePath)
 
         archive.append(content, { name: file })
 
-        current++
-        fileResults.push({ name: file, size: stats.size, status: 'OK' })
-        options.onEntry?.(file, stats.size)
-        options.onProgress?.(current, files.length)
+        currentFiles++
+        currentBytes += size
+        fileResults.push({ name: file, size, status: 'OK' })
+        options.onEntry?.(file, size)
+        options.onProgress?.(currentBytes, totalBytes, currentFiles, files.length)
       }
       archive.finalize()
     })().catch(reject)

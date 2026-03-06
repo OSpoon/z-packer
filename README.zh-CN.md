@@ -12,8 +12,10 @@
 - 🗜️ **多格式** — 支持 `zip`、`tar`、`tar.gz`，通过 `--format` 指定
 - 🔍 **遵守 gitignore** — 自动读取 `.gitignore` 规则，无需手动排除
 - 🛡️ **安全** — 打包时自动排除生成的压缩包本身，不会重复打包
-- 📊 **可视化** — 显示进度条和文件清单表格
+- 📊 **可视化** — 字节级进度条 + 文件清单表格
 - 🚀 **一键部署** — 打包并通过 SSH/SFTP 上传，一条命令完成
+- 🔎 **预览模式** — 使用 `--dry-run` 预览打包文件清单，不实际压缩
+- ⚙️ **初始化** — 使用 `init` 命令快速生成 `.zpackerrc` 配置模板
 
 ## 使用方式
 
@@ -121,6 +123,23 @@ readyTimeout=20000
 
 ---
 
+### `init` — 生成配置模板
+
+在当前目录创建 `.zpackerrc` 模板文件：
+
+```bash
+z-packer init
+
+# 覆盖已有的 .zpackerrc
+z-packer init --force
+```
+
+| 参数 | 类型 | 默认值 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `--force` | boolean | `false` | 覆盖已有的 `.zpackerrc` 文件 |
+
+---
+
 ### `pack` — 仅压缩（默认命令）
 
 ```bash
@@ -130,12 +149,16 @@ z-packer pack [目录]
 
 # 生成 tar.gz 格式
 z-packer pack . --format tar.gz
+
+# 预览打包文件清单（不实际创建压缩包）
+z-packer pack . --dry-run
 ```
 
 | 参数 | 类型 | 默认值 | 说明 |
 | :--- | :--- | :--- | :--- |
 | `input` | string | `.` | 要打包的目标目录 |
 | `--format` | string | `zip` | 压缩格式：`zip` \| `tar` \| `tar.gz` |
+| `--dry-run` | boolean | `false` | 预览将被打包的文件清单，不实际创建压缩包 |
 | `--help` | — | — | 显示帮助 |
 | `--version` | — | — | 显示版本号 |
 
@@ -178,6 +201,7 @@ z-packer deploy . \
 > [!NOTE]
 > `--password` 和 `--private-key` 必须提供其中一个。
 > 上传完成后，本地压缩包默认自动删除，除非设置了 `--keep-local`。
+> 如果缺少 `--host`、`--username` 或认证信息，z-packer 将交互式提示你填写所需字段。
 
 ---
 

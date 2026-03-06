@@ -2,7 +2,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import fs from 'fs-extra'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { loadConfig } from '../src/config'
+import { generateConfigTemplate, loadConfig } from '../src/config'
 
 const testDir = join(process.cwd(), 'temp-config-test')
 const fakeHome = join(testDir, 'home')
@@ -217,5 +217,43 @@ describe('loadConfig', () => {
 
     const cfg = loadConfig(p)
     expect(cfg.password).toBe('p=with=equals')
+  })
+})
+
+// ── generateConfigTemplate ──────────────────────────────────────────────────────
+
+describe('generateConfigTemplate', () => {
+  it('should return a non-empty string', () => {
+    const tpl = generateConfigTemplate()
+    expect(typeof tpl).toBe('string')
+    expect(tpl.length).toBeGreaterThan(0)
+  })
+
+  it('should contain all known config keys as comments', () => {
+    const tpl = generateConfigTemplate()
+    const knownKeys = ['host', 'port', 'username', 'password', 'privateKey', 'remotePath', 'format', 'keepLocal', 'readyTimeout']
+    for (const key of knownKeys) {
+      expect(tpl).toContain(key)
+    }
+  })
+
+  it('should have all config lines commented out by default', () => {
+    const tpl = generateConfigTemplate()
+    const configLines = tpl.split('\n').filter(l => l.includes('='))
+    for (const line of configLines) {
+      expect(line.trimStart().startsWith('#')).toBe(true)
+    }
+  })
+
+  it('should be a valid config when uncommented', () => {
+    const tpl = generateConfigTemplate()
+    // Uncomment all lines
+    const uncommented = tpl
+      .split('\n')
+      .map(l => l.replace(/^# /, ''))
+      .join('\n')
+    // Should not throw when parsed
+    expect(() => loadConfig(undefined, '/nonexistent')).not.toThrow()
+    expect(uncommented).toContain('host=')
   })
 })

@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import fs from 'fs-extra'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { compress } from '../src/compress'
+import { compress, scan } from '../src/compress'
 
 const testDir = join(process.cwd(), 'temp-compress-test-dir')
 
@@ -122,13 +122,14 @@ describe('compress – format support', () => {
     expect(await fs.pathExists(result.outputPath)).toBe(true)
   })
 
-  // ── hooks ────────────────────────────────────────────────────────────────────
+  // ── hooks (byte-level progress) ─────────────────────────────────────────────
 
-  it('should trigger all hooks for tar format', async () => {
+  it('should trigger all hooks including onTotalBytes with byte-level onProgress', async () => {
     const hooks = {
       onScan: vi.fn(),
       onFound: vi.fn(),
       onStart: vi.fn(),
+      onTotalBytes: vi.fn(),
       onProgress: vi.fn(),
       onEntry: vi.fn(),
     }
@@ -138,8 +139,21 @@ describe('compress – format support', () => {
     expect(hooks.onScan).toHaveBeenCalledTimes(1)
     expect(hooks.onFound).toHaveBeenCalledWith(expect.any(Number))
     expect(hooks.onStart).toHaveBeenCalledWith(expect.stringContaining('.tar'))
+    expect(hooks.onTotalBytes).toHaveBeenCalledWith(expect.any(Number))
+    expect(hooks.onTotalBytes).toHaveBeenCalledTimes(1)
     expect(hooks.onProgress).toHaveBeenCalled()
     expect(hooks.onEntry).toHaveBeenCalled()
+
+    // Verify onProgress receives (currentBytes, totalBytes, currentFiles, totalFiles)
+    const [currentBytes, totalBytes, currentFiles, totalFiles] = hooks.onProgress.mock.calls[0]
+    expect(typeof currentBytes).toBe('number')
+    expect(typeof totalBytes).toBe('number')
+    expect(typeof currentFiles).toBe('number')
+    expect(typeof totalFiles).toBe('number')
+    expect(currentBytes).toBeGreaterThan(0)
+    expect(totalBytes).toBeGreaterThan(0)
+    expect(currentFiles).toBe(1)
+    expect(totalFiles).toBeGreaterThan(0)
   })
 
   it('should trigger all hooks for tar.gz format', async () => {
@@ -147,6 +161,7 @@ describe('compress – format support', () => {
       onScan: vi.fn(),
       onFound: vi.fn(),
       onStart: vi.fn(),
+      onTotalBytes: vi.fn(),
       onProgress: vi.fn(),
       onEntry: vi.fn(),
     }
@@ -156,6 +171,7 @@ describe('compress – format support', () => {
     expect(hooks.onScan).toHaveBeenCalledTimes(1)
     expect(hooks.onFound).toHaveBeenCalledWith(expect.any(Number))
     expect(hooks.onStart).toHaveBeenCalledWith(expect.stringContaining('.tar.gz'))
+    expect(hooks.onTotalBytes).toHaveBeenCalledWith(expect.any(Number))
     expect(hooks.onProgress).toHaveBeenCalled()
     expect(hooks.onEntry).toHaveBeenCalled()
   })
@@ -178,6 +194,66 @@ describe('compress – format support', () => {
 
     const result = await compress({ input: 'temp-compress-test-dir/empty-sub2', format: 'tar.gz' })
 
+    expect(result.files.length).toBe(0)
+    expect(result.totalSize).toBe(0)
+  })
+})
+
+// ── scan() ──────────────────────────────────────────────────────────────────────
+
+describe('scan', () => {
+  const scanTestDir = join(process.cwd(), 'temp-scan-test-dir')
+
+  beforeAll(async () => {
+    await fs.ensureDir(scanTestDir)
+    await fs.writeFile(join(scanTestDir, 'file-a.txt'), 'aaa')
+    await fs.writeFile(join(scanTestDir, 'file-b.txt'), 'bbbbbb')
+    await fs.ensureDir(join(scanTestDir, 'sub'))
+    await fs.writeFile(join(scanTestDir, 'sub', 'file-c.ts'), 'export default 42')
+    await fs.writeFile(join(scanTestDir, '.gitignore'), 'node_modules/')
+  })
+
+  afterAll(async () => {
+    await fs.remove(scanTestDir)
+  })
+
+  it('should return all files with sizes', async () => {
+    const result = await scan(scanTestDir)
+
+    expect(result.files.length).toBeGreaterThanOrEqual(3)
+    const names = result.files.map(f => f.name)
+    expect(names).toContain('file-a.txt')
+    expect(names).toContain('file-b.txt')
+    expect(names).toContain('sub/file-c.ts')
+
+    for (const file of result.files) {
+      expect(file.size).toBeGreaterThan(0)
+    }
+  })
+
+  it('should return correct totalSize', async () => {
+    const result = await scan(scanTestDir)
+
+    const expectedTotal = result.files.reduce((sum, f) => sum + f.size, 0)
+    expect(result.totalSize).toBe(expectedTotal)
+  })
+
+  it('should return zipName with correct format extension', async () => {
+    const zipResult = await scan(scanTestDir, 'zip')
+    expect(zipResult.zipName).toMatch(/\.zip$/)
+
+    const tarResult = await scan(scanTestDir, 'tar')
+    expect(tarResult.zipName).toMatch(/\.tar$/)
+
+    const tgzResult = await scan(scanTestDir, 'tar.gz')
+    expect(tgzResult.zipName).toMatch(/\.tar\.gz$/)
+  })
+
+  it('should return empty for empty directory', async () => {
+    const emptyDir = join(scanTestDir, 'empty')
+    await fs.ensureDir(emptyDir)
+
+    const result = await scan(emptyDir)
     expect(result.files.length).toBe(0)
     expect(result.totalSize).toBe(0)
   })

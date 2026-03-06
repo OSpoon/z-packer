@@ -149,3 +149,43 @@ export function loadConfig(customPath?: string, cwd: string = process.cwd()): ZP
 
   return {}
 }
+
+/**
+ * Generate a `.zpackerrc` template string with all known keys and helpful comments.
+ */
+export function generateConfigTemplate(): string {
+  return [
+    '# .zpackerrc — z-packer configuration file',
+    '# Key=value format. Lines starting with # are comments.',
+    '# CLI arguments always override values set here.',
+    '# Add this file to .gitignore to keep credentials out of version control.',
+    '',
+    '# Remote server hostname or IP',
+    '# host=192.168.1.100',
+    '',
+    '# SSH port (default: 22)',
+    '# port=22',
+    '',
+    '# SSH login username',
+    '# username=deploy',
+    '',
+    '# SSH password (use privateKey for key-based auth)',
+    '# password=secret',
+    '',
+    '# Path to SSH private key file (supports ~)',
+    '# privateKey=~/.ssh/id_rsa',
+    '',
+    '# Remote directory to upload the archive into (default: /tmp)',
+    '# remotePath=/home/deploy/releases',
+    '',
+    '# Archive format: zip | tar | tar.gz (default: zip)',
+    '# format=tar.gz',
+    '',
+    '# Keep the local archive after a successful upload (default: false)',
+    '# keepLocal=false',
+    '',
+    '# SSH connection ready timeout in milliseconds (default: 20000)',
+    '# readyTimeout=20000',
+    '',
+  ].join('\n')
+}

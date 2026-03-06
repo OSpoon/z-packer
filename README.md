@@ -14,8 +14,10 @@ Pack your project into zip / tar / tar.gz, gitignore-aware, deploy-ready.
 - 🗜️ **Multi-format** — `zip`, `tar`, `tar.gz` via `--format`
 - 🔍 **Gitignore-aware** — respects `.gitignore` rules automatically
 - 🛡️ **Safe** — never includes the archive itself in the archive
-- 📊 **Visual** — progress bar + file summary table
+- 📊 **Visual** — byte-level progress bar + file summary table
 - 🚀 **Deploy** — compress & upload in one command via SSH/SFTP
+- 🔎 **Dry-run** — preview files to be packed without creating an archive
+- ⚙️ **Init** — generate a `.zpackerrc` config template interactively
 
 ## Usage
 
@@ -122,6 +124,23 @@ readyTimeout=20000
 
 ---
 
+### `init` — Generate config template
+
+Create a `.zpackerrc` template file in the current directory:
+
+```bash
+z-packer init
+
+# Overwrite an existing .zpackerrc
+z-packer init --force
+```
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--force` | boolean | `false` | Overwrite existing `.zpackerrc` file |
+
+---
+
 ### `pack` — Compress only (default)
 
 
@@ -132,12 +151,16 @@ z-packer pack [directory]
 
 # Produce a tar.gz instead of zip
 z-packer pack . --format tar.gz
+
+# Preview files without creating an archive
+z-packer pack . --dry-run
 ```
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `input` | string | `.` | Target directory to archive |
 | `--format` | string | `zip` | Archive format: `zip` \| `tar` \| `tar.gz` |
+| `--dry-run` | boolean | `false` | Preview files to be packed without creating an archive |
 | `--help` | — | — | Show help information |
 | `--version` | — | — | Show version number |
 
@@ -180,6 +203,7 @@ z-packer deploy . \
 > [!NOTE]
 > Either `--password` or `--private-key` must be provided.
 > After upload the local archive is deleted automatically unless `--keep-local` is set.
+> If `--host`, `--username`, or authentication is missing, z-packer will interactively prompt you to fill in the required fields.
 
 ---
 
