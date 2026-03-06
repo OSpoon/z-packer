@@ -1,7 +1,7 @@
 {
   "name": "z-packer",
   "type": "module",
-  "version": "0.2.1-beta.4",
+  "version": "0.3.0-beta.1",
   "packageManager": "pnpm@10.25.0",
   "description": "Pack your project into zip / tar / tar.gz, gitignore-aware, deploy-ready.",
   "author": "OSpoon",
