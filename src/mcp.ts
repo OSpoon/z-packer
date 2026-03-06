@@ -1,17 +1,21 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import process from 'node:process'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { filesize } from 'filesize'
+import fs from 'fs-extra'
 import { z } from 'zod'
-import { compress } from './compress'
-import { loadConfig } from './config'
+import { compress, scan } from './compress'
+import { generateConfigTemplate, loadConfig } from './config'
 import { upload } from './upload'
 
 console.error('[z-packer] MCP script loading...')
 
 const server = new McpServer({
   name: 'z-packer',
-  version: '0.2.1',
+  version: '0.3.0',
 })
 
 // --- Tool: get_config ---
@@ -43,6 +47,82 @@ server.registerTool(
       return {
         isError: true,
         content: [{ type: 'text', text: `Failed to load config: ${(error as Error).message}` }],
+      }
+    }
+  },
+)
+
+// --- Tool: scan (dry-run) ---
+server.registerTool(
+  'z_packer_scan',
+  {
+    description: [
+      'Preview which files will be included in the archive without actually creating it.',
+      'This is equivalent to the CLI --dry-run option.',
+      'Returns the list of files, total count, and total estimated size.',
+      'Use this to verify .gitignore rules before packing or deploying.',
+    ].join(' '),
+    inputSchema: z.object({
+      input: z.string().default('.').describe('Path to the project directory to scan.'),
+      format: z.enum(['zip', 'tar', 'tar.gz']).default('zip').describe('Target archive format.'),
+    }),
+  },
+  async ({ input, format }): Promise<CallToolResult> => {
+    try {
+      const result = await scan(input, format)
+      const fileList = result.files.map(f => `- ${f.name} (${filesize(f.size)})`).join('\n')
+      const text = [
+        `✅ Found ${result.files.length} files`,
+        `📦 Target: ${result.zipName}`,
+        `📊 Total source size: ${filesize(result.totalSize)}`,
+        `\nFiles:\n${fileList}`,
+      ].join('\n')
+
+      return {
+        content: [{ type: 'text', text }],
+      }
+    }
+    catch (error) {
+      return {
+        isError: true,
+        content: [{ type: 'text', text: `Scan failed: ${(error as Error).message}` }],
+      }
+    }
+  },
+)
+
+// --- Tool: init ---
+server.registerTool(
+  'z_packer_init',
+  {
+    description: [
+      'Generate a .zpackerrc configuration template in the target directory.',
+      'AI can call this to help the user set up their deployment configuration.',
+    ].join(' '),
+    inputSchema: z.object({
+      directory: z.string().default('.').describe('Directory where to create .zpackerrc.'),
+      force: z.boolean().default(false).describe('Overwrite existing .zpackerrc if it exists.'),
+    }),
+  },
+  async ({ directory, force }): Promise<CallToolResult> => {
+    try {
+      const targetPath = join(process.cwd(), directory, '.zpackerrc') // Use process.cwd() and join for robustness
+      if (await fs.pathExists(targetPath) && !force) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: `.zpackerrc already exists at ${targetPath}. Use force=true to overwrite.` }],
+        }
+      }
+      const template = generateConfigTemplate()
+      await fs.writeFile(targetPath, template, 'utf-8')
+      return {
+        content: [{ type: 'text', text: `Successfully created .zpackerrc template at ${targetPath}` }],
+      }
+    }
+    catch (error) {
+      return {
+        isError: true,
+        content: [{ type: 'text', text: `Init failed: ${(error as Error).message}` }],
       }
     }
   },
@@ -80,7 +160,7 @@ server.registerTool(
         name,
       })
       return {
-        content: [{ type: 'text', text: `Successfully created archive: ${result.zipName}\nOutput path: ${result.outputPath}\nTotal size: ${result.totalSize} bytes` }],
+        content: [{ type: 'text', text: `Successfully created archive: ${result.zipName}\nOutput path: ${result.outputPath}\nTotal size: ${filesize(result.totalSize)}` }],
       }
     }
     catch (error) {
@@ -165,8 +245,7 @@ server.registerTool(
 
       // 4. Cleanup
       if (!args.keepLocal) {
-        const fs = await import('fs-extra')
-        await fs.default.remove(localFilePath)
+        await fs.remove(localFilePath)
       }
 
       return {
