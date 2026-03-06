@@ -59,9 +59,11 @@ z-packer .
 
 可用工具：
 
-- `z_packer_pack`：压缩项目。
-- `z_packer_deploy`：压缩并通过 SSH 上传。
-- `z_packer_get_config`：读取 `.zpackerrc` 配置。
+- `z_packer_get_config`：读取 `.zpackerrc` 配置。建议首先调用以获取预设的 SSH 凭证。
+- `z_packer_scan`：预览将被打包的文件清单（等同于 `--dry-run`）。
+- `z_packer_init`：在目标目录生成 `.zpackerrc` 配置模板。
+- `z_packer_pack`：将项目压缩为 `zip`、`tar` 或 `tar.gz` 格式。
+- `z_packer_deploy`：一键完成压缩并通 SSH/SFTP 上传。需要 host、username 以及认证信息（密码或私钥）。
 
 ### 调试 MCP
 

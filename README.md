@@ -60,9 +60,11 @@ Add this to your MCP client config:
 > If you have `z-packer` installed globally, you can also use `"command": "z-packer", "args": ["mcp"]` for faster startup.
 
 Available tools:
-- `z_packer_pack`: Compress the project.
-- `z_packer_deploy`: Compress and upload via SSH.
-- `z_packer_get_config`: Read `.zpackerrc` settings.
+- `z_packer_get_config`: Read `.zpackerrc` settings. Call this first to discover pre-configured credentials.
+- `z_packer_scan`: Preview files to be included (equivalent to `--dry-run`).
+- `z_packer_init`: Generate a `.zpackerrc` configuration template in the target directory.
+- `z_packer_pack`: Compress the project into a `zip`, `tar`, or `tar.gz` archive.
+- `z_packer_deploy`: Compress and upload via SSH/SFTP in one step. Requires host, username, and authentication (password or private key).
 
 ### Debugging MCP
 
