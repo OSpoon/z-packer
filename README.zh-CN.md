@@ -81,6 +81,29 @@ z-packer .
 
 ---
 
+## OpenClaw (技能与插件)
+
+`z-packer` 深度集成于 [OpenClaw](https://openclaw.ai) 生态，提供 **Plugin**（用于编程式工具和托管配置）和 **Skill**（用于自然语言指令引导）。
+
+### 安装
+
+在 OpenClaw 环境中直接安装：
+
+```bash
+openclaw plugins install z-packer
+```
+
+### 功能特性
+
+- **托管凭据**：直接在 OpenClaw UI 界面设置默认的 SSH 主机、用户名和密码（密码会被加密存储）。
+- **原生工具**：安装后，Agent 可直接调用以下工具：
+  - `z_packer_scan`：文件预览。
+  - `z_packer_pack`：项目压缩。
+  - `z_packer_deploy`：一键部署。
+- **自动技能加载**：插件安装后会自动启用对应的 Skill，教导 Agent 如何最优化地使用打包和部署功能。
+
+---
+
 ## 配置文件
 
 为避免每次 `deploy` 都要输入 SSH 凭证，可以在项目目录（或 `~/.zpackerrc` 作为全局默认）创建 `.zpackerrc` 文件：

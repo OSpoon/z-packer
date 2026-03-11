@@ -29,7 +29,16 @@
     ".": "./dist/index.mjs",
     "./cli": "./dist/cli.mjs",
     "./mcp": "./dist/mcp.mjs",
+    "./plugin": "./dist/plugin.mjs",
     "./package.json": "./package.json"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/plugin.mjs"
+    ],
+    "skills": [
+      "./skills"
+    ]
   },
   "types": "./dist/index.d.mts",
   "bin": {

@@ -82,6 +82,29 @@ If the MCP server is not working as expected:
 
 ---
 
+## OpenClaw (Skill & Plugin)
+
+`z-packer` is fully compatible with the [OpenClaw](https://openclaw.ai) ecosystem, providing both a **Plugin** (for programmatic tools and managed config) and a **Skill** (for natural language instructions).
+
+### Installation
+
+You can install `z-packer` directly in your OpenClaw environment:
+
+```bash
+openclaw plugins install z-packer
+```
+
+### Features
+
+- **Managed Credentials**: Configure your default SSH host, username, and password directly in the OpenClaw UI settings.
+- **Native Tools**: Once installed, the following tools are available to your agents:
+  - `z_packer_scan`: Preview files.
+  - `z_packer_pack`: Compress directory.
+  - `z_packer_deploy`: One-click deployment.
+- **Auto-Skill**: The `z-packer` Skill is automatically enabled upon plugin installation, teaching your agents how to use these tools effectively.
+
+---
+
 ## Configuration
 
 To avoid typing SSH credentials on every `deploy` run, create a `.zpackerrc` file in your project directory (or `~/.zpackerrc` as a global default).
