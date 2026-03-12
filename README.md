@@ -120,6 +120,8 @@ password=secret
 # privateKey=~/.ssh/id_rsa
 
 remotePath=/home/deploy/releases
+postCommands=tar -xzf {{remoteFile}} -C /srv/app && systemctl restart my-app
+postScripts=./deploy.sh
 format=tar.gz
 keepLocal=false
 readyTimeout=20000
@@ -143,6 +145,8 @@ readyTimeout=20000
 | `password` | string | — | SSH password |
 | `privateKey` | string | — | Path to SSH private key file (supports `~`) |
 | `remotePath` | string | `/tmp` | Remote directory to upload the archive into |
+| `postCommands` | string | — | Remote command(s) to run after upload (supports `{{remoteFile}}`, `{{remoteDir}}`) |
+| `postScripts` | string | — | Local script path(s) to upload and execute after upload (comma-separated if multiple) |
 | `format` | string | `zip` | Archive format: `zip` \| `tar` \| `tar.gz` |
 | `keepLocal` | boolean | `false` | Keep the local archive after a successful upload |
 | `readyTimeout` | number | `20000` | SSH connection ready timeout (ms) |
@@ -208,6 +212,9 @@ z-packer deploy . \
   --username <user> \
   --private-key ~/.ssh/id_rsa \
   --remote-path /home/deploy/releases \
+  --post-cmd "tar -xzf {{remoteFile}} -C /srv/app" \
+  --post-cmd "systemctl restart my-app" \
+  --post-script "./deploy.sh" \
   --format tar.gz \
   --keep-local
 ```
@@ -222,6 +229,8 @@ z-packer deploy . \
 | `--password` | string | — | Password authentication |
 | `--private-key` | string | — | Path to SSH private key file (e.g. `~/.ssh/id_rsa`) |
 | `--remote-path` | string | `/tmp` | Remote directory to upload the archive into |
+| `--post-cmd` | string[] | — | Remote command(s) to run after upload (repeatable; supports `{{remoteFile}}`) |
+| `--post-script` | string[] | — | Local script path(s) to upload and execute after upload (repeatable) |
 | `--keep-local` | boolean | `false` | Keep the local archive after a successful upload |
 | `--ready-timeout` | number | `20000` | SSH connection ready timeout in milliseconds |
 
@@ -229,6 +238,7 @@ z-packer deploy . \
 > Either `--password` or `--private-key` must be provided.
 > After upload the local archive is deleted automatically unless `--keep-local` is set.
 > If `--host`, `--username`, or authentication is missing, z-packer will interactively prompt you to fill in the required fields.
+> Only `{{remoteFile}}` and `{{remoteDir}}` are supported in `postCommands`. Template variables are shell-escaped automatically.
 
 ---
 
@@ -243,6 +253,7 @@ pnpm run build
 
 # Run in development
 pnpm start pack .
+
 ```
 
 ## License

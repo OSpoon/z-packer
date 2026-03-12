@@ -80,6 +80,16 @@ const instance = yargs(process.argv.slice(2))
           type: 'string',
           describe: 'Remote directory to upload the archive into (default: /tmp)',
         })
+        .option('post-cmd', {
+          type: 'string',
+          array: true,
+          describe: 'Additional remote command to run after deploy (can be repeated; supports {{remoteFile}})',
+        })
+        .option('post-script', {
+          type: 'string',
+          array: true,
+          describe: 'Local script path to upload and execute after deploy (can be repeated)',
+        })
         .option('keep-local', {
           type: 'boolean',
           describe: 'Keep the local archive after upload',

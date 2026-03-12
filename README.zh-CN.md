@@ -119,6 +119,8 @@ password=secret
 # privateKey=~/.ssh/id_rsa
 
 remotePath=/home/deploy/releases
+postCommands=tar -xzf {{remoteFile}} -C /srv/app && systemctl restart my-app
+postScripts=./deploy.sh
 format=tar.gz
 keepLocal=false
 readyTimeout=20000
@@ -142,6 +144,8 @@ readyTimeout=20000
 | `password` | string | — | SSH 登录密码 |
 | `privateKey` | string | — | SSH 私钥文件路径（支持 `~` 展开） |
 | `remotePath` | string | `/tmp` | 远程服务器上的目标目录 |
+| `postCommands` | string | — | 上传完成后执行的远程命令（支持 `{{remoteFile}}`、`{{remoteDir}}`） |
+| `postScripts` | string | — | 本地脚本路径（上传后在远程执行，多个可用逗号分隔） |
 | `format` | string | `zip` | 压缩格式：`zip` \| `tar` \| `tar.gz` |
 | `keepLocal` | boolean | `false` | 上传成功后是否保留本地压缩包 |
 | `readyTimeout` | number | `20000` | SSH 连接超时时间（毫秒） |
@@ -206,6 +210,9 @@ z-packer deploy . \
   --username <用户> \
   --private-key ~/.ssh/id_rsa \
   --remote-path /home/deploy/releases \
+  --post-cmd "tar -xzf {{remoteFile}} -C /srv/app" \
+  --post-cmd "systemctl restart my-app" \
+  --post-script "./deploy.sh" \
   --format tar.gz \
   --keep-local
 ```
@@ -220,6 +227,8 @@ z-packer deploy . \
 | `--password` | string | — | 密码认证 |
 | `--private-key` | string | — | SSH 私钥文件路径（如 `~/.ssh/id_rsa`） |
 | `--remote-path` | string | `/tmp` | 上传到远程服务器的目标目录 |
+| `--post-cmd` | string[] | — | 上传完成后执行的远程命令（可重复；支持 `{{remoteFile}}`） |
+| `--post-script` | string[] | — | 本地脚本路径（上传后在远程执行，可重复） |
 | `--keep-local` | boolean | `false` | 上传后保留本地压缩包 |
 | `--ready-timeout` | number | `20000` | SSH 连接超时时间（毫秒） |
 
@@ -227,6 +236,7 @@ z-packer deploy . \
 > `--password` 和 `--private-key` 必须提供其中一个。
 > 上传完成后，本地压缩包默认自动删除，除非设置了 `--keep-local`。
 > 如果缺少 `--host`、`--username` 或认证信息，z-packer 将交互式提示你填写所需字段。
+> `postCommands` 仅支持 `{{remoteFile}}` 与 `{{remoteDir}}`，模板变量会自动进行 shell 转义。
 
 ---
 
@@ -241,6 +251,7 @@ pnpm run build
 
 # 开发模式运行
 pnpm start pack .
+
 ```
 
 ## 许可证

@@ -40,6 +40,8 @@ describe('loadConfig', () => {
       'username=deploy',
       'password=secret',
       'remotePath=/srv/app',
+      'postCommands=echo deploy',
+      'postScripts=./deploy.sh,./restart.sh',
       'format=tar.gz',
       'keepLocal=true',
       'readyTimeout=5000',
@@ -51,6 +53,8 @@ describe('loadConfig', () => {
     expect(cfg.username).toBe('deploy')
     expect(cfg.password).toBe('secret')
     expect(cfg.remotePath).toBe('/srv/app')
+    expect(cfg.postCommands).toBe('echo deploy')
+    expect(cfg.postScripts).toBe('./deploy.sh,./restart.sh')
     expect(cfg.format).toBe('tar.gz')
     expect(cfg.keepLocal).toBe(true)
     expect(cfg.readyTimeout).toBe(5000)
@@ -231,7 +235,7 @@ describe('generateConfigTemplate', () => {
 
   it('should contain all known config keys as comments', () => {
     const tpl = generateConfigTemplate()
-    const knownKeys = ['host', 'port', 'username', 'password', 'privateKey', 'remotePath', 'format', 'keepLocal', 'readyTimeout']
+    const knownKeys = ['host', 'port', 'username', 'password', 'privateKey', 'remotePath', 'postCommands', 'postScripts', 'format', 'keepLocal', 'readyTimeout']
     for (const key of knownKeys) {
       expect(tpl).toContain(key)
     }

@@ -1,10 +1,12 @@
+import type { RemoteUpload } from './remote'
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import process from 'node:process'
 import { filesize } from 'filesize'
 import fs from 'fs-extra'
 import { compress, scan } from './compress'
 import { generateConfigTemplate } from './config'
+import { buildRemoteSteps, runRemoteCommands } from './remote'
 import { upload } from './upload'
 
 export default {
@@ -19,12 +21,16 @@ export default {
       password: { type: 'string' },
       privateKeyPath: { type: 'string' },
       remotePath: { type: 'string', default: '/tmp' },
+      postCommands: { type: 'array', items: { type: 'string' } },
+      postScripts: { type: 'array', items: { type: 'string' } },
     },
   },
   uiHints: {
     password: { label: 'SSH Password', sensitive: true },
     privateKeyPath: { label: 'Private Key Path', placeholder: '~/.ssh/id_rsa' },
     remotePath: { label: 'Remote Deploy Path', placeholder: '/var/www/app' },
+    postCommands: { label: 'Post Commands', placeholder: 'systemctl restart my-app' },
+    postScripts: { label: 'Post Scripts', placeholder: './deploy.sh' },
   },
   register(api: any) {
     // --- Tool: scan ---
@@ -93,6 +99,8 @@ export default {
           password: { type: 'string' },
           privateKeyPath: { type: 'string' },
           remotePath: { type: 'string' },
+          postCommands: { type: 'array', items: { type: 'string' } },
+          postScripts: { type: 'array', items: { type: 'string' } },
           keepLocal: { type: 'boolean', default: false },
         },
       },
@@ -105,6 +113,8 @@ export default {
           const password = args.password || config.password
           const privateKeyPath = args.privateKeyPath || config.privateKeyPath
           const remotePath = args.remotePath || config.remotePath || '/tmp'
+          const postCommands = args.postCommands || config.postCommands
+          const postScripts = args.postScripts || config.postScripts
 
           if (!host || !username) {
             throw new Error('Missing SSH host or username. Please configure the plugin or provide them as arguments.')
@@ -131,11 +141,32 @@ export default {
             remotePath,
           })
 
+          const postScriptUploads = await resolvePostScriptUploads(
+            Array.isArray(postScripts) ? postScripts : postScripts ? [postScripts] : [],
+            remotePath,
+          )
+          const steps = buildRemoteSteps({
+            remoteFile: uploadResult.remoteFile,
+            postCommands: Array.isArray(postCommands) ? postCommands : postCommands ? [postCommands] : [],
+            postScripts: postScriptUploads,
+          })
+          if (steps.length > 0) {
+            await runRemoteCommands({
+              host,
+              port,
+              username,
+              password,
+              privateKey,
+              uploads: postScriptUploads,
+              steps,
+            })
+          }
+
           if (!args.keepLocal) {
             await fs.remove(localFilePath)
           }
 
-          return `Deployment successful!\nRemote file: ${uploadResult.remoteFile}\nLocal archive ${args.keepLocal ? 'kept' : 'removed'}.`
+          return `Deployment successful!\nRemote file: ${uploadResult.remoteFile}\nLocal archive ${args.keepLocal ? 'kept' : 'removed'}.\nPost actions executed: ${steps.length}.`
         }
         catch (error: any) {
           throw new Error(`Deployment failed: ${error.message}`)
@@ -170,4 +201,19 @@ export default {
       },
     })
   },
+}
+
+async function resolvePostScriptUploads(paths: string[], remoteBase: string): Promise<RemoteUpload[]> {
+  if (paths.length === 0)
+    return []
+  const base = remoteBase.replace(/\/$/, '')
+  const uploads = []
+  for (const localPath of paths) {
+    const exists = await fs.pathExists(localPath)
+    if (!exists)
+      throw new Error(`Post script not found: ${localPath}`)
+    const remotePath = `${base}/${basename(localPath)}`
+    uploads.push({ localPath, remotePath, mode: 0o755 })
+  }
+  return uploads
 }

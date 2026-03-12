@@ -1,7 +1,9 @@
 import type { ArgumentsCamelCase } from 'yargs'
 import type { CompressFormat } from '../compress'
 import type { ZPackerConfig } from '../config'
+import type { RemoteUpload } from '../remote'
 import { readFileSync } from 'node:fs'
+import { basename } from 'node:path'
 import process from 'node:process'
 import chalk from 'chalk'
 import { Presets, SingleBar } from 'cli-progress'
@@ -10,6 +12,7 @@ import fs from 'fs-extra'
 import { compress } from '../compress'
 import { loadConfig } from '../config'
 import { promptDeployConfig } from '../prompt'
+import { buildRemoteSteps, runRemoteCommands } from '../remote'
 import { upload } from '../upload'
 
 export async function deployHandler(argv: ArgumentsCamelCase): Promise<void> {
@@ -35,8 +38,18 @@ export async function deployHandler(argv: ArgumentsCamelCase): Promise<void> {
   let password = (argv.password as string | undefined) ?? cfg.password
   let privateKeyPath = (argv['private-key'] as string | undefined) ?? cfg.privateKey
   const remotePath = (argv['remote-path'] as string | undefined) ?? cfg.remotePath ?? '/tmp'
+  const postCommandsCli = normalizeCommandList(argv['post-cmd'] as string[] | string | undefined)
+  const postCommands = postCommandsCli.length > 0
+    ? postCommandsCli
+    : normalizeCommandList(cfg.postCommands)
+  const postScriptsCli = normalizePathList(argv['post-script'] as string[] | string | undefined)
+  const postScripts = postScriptsCli.length > 0
+    ? postScriptsCli
+    : normalizePathList(cfg.postScripts)
   const keepLocal = (argv['keep-local'] as boolean | undefined) ?? cfg.keepLocal ?? false
   const readyTimeout = (argv['ready-timeout'] as number | undefined) ?? cfg.readyTimeout ?? 20000
+  const hasPostActions = postCommands.length > 0 || postScripts.length > 0
+  const totalSteps = hasPostActions ? 3 : 2
 
   // ── Interactive prompts for missing fields ──────────────────────────────
   if (!host || !username || (!password && !privateKeyPath)) {
@@ -62,7 +75,7 @@ export async function deployHandler(argv: ArgumentsCamelCase): Promise<void> {
   let totalBytes = 0
 
   // ── Step 1: Compress ────────────────────────────────────────────────────
-  console.log(chalk.bold.cyan('\n── Step 1/2: Compressing ──────────────────────'))
+  console.log(chalk.bold.cyan(`\n── Step 1/${totalSteps}: Compressing ──────────────────────`))
   let compressResult: Awaited<ReturnType<typeof compress>>
   try {
     compressResult = await compress({
@@ -113,7 +126,7 @@ export async function deployHandler(argv: ArgumentsCamelCase): Promise<void> {
   }
 
   // ── Step 2: Upload via SFTP ─────────────────────────────────────────────
-  console.log(chalk.bold.cyan('\n── Step 2/2: Uploading via SSH/SFTP ───────────'))
+  console.log(chalk.bold.cyan(`\n── Step 2/${totalSteps}: Uploading via SSH/SFTP ───────────`))
   console.log(chalk.white(`   Server: ${chalk.bold(`${username}@${host}:${port}`)}`))
   console.log(chalk.white(`   Remote path: ${chalk.bold(remotePath)}`))
 
@@ -133,8 +146,10 @@ export async function deployHandler(argv: ArgumentsCamelCase): Promise<void> {
     }
   }
 
+  let uploadResult: Awaited<ReturnType<typeof upload>> | undefined
+
   try {
-    await upload({
+    uploadResult = await upload({
       localFile: localFilePath,
       host: host!,
       port,
@@ -172,6 +187,52 @@ export async function deployHandler(argv: ArgumentsCamelCase): Promise<void> {
     process.exit(1)
   }
 
+  // ── Step 3: Remote actions ──────────────────────────────────────────────
+  if (hasPostActions && uploadResult) {
+    const postScriptUploads = await resolvePostScriptUploads(postScripts, remotePath)
+    const steps = buildRemoteSteps({
+      remoteFile: uploadResult.remoteFile,
+      postCommands,
+      postScripts: postScriptUploads,
+    })
+
+    if (steps.length > 0) {
+      console.log(chalk.bold.cyan(`\n── Step 3/${totalSteps}: Remote Actions ───────────`))
+      try {
+        await runRemoteCommands({
+          host: host!,
+          port,
+          username: username!,
+          ...(password ? { password } : {}),
+          ...(resolvedPrivateKey ? { privateKey: resolvedPrivateKey } : {}),
+          readyTimeout,
+          uploads: postScriptUploads,
+          steps,
+          onConnect: () => {
+            console.log(chalk.green('🛰  Remote command session started'))
+          },
+          onStepStart: (step, index, total) => {
+            console.log(chalk.cyan(`▶ ${index + 1}/${total} ${step.label}`))
+          },
+          onStdout: (chunk) => {
+            process.stdout.write(chalk.gray(chunk))
+          },
+          onStderr: (chunk) => {
+            process.stderr.write(chalk.yellow(chunk))
+          },
+          onStepDone: (result, index, total) => {
+            if (result.code === 0 || result.code === null)
+              console.log(chalk.green(`✓ ${index + 1}/${total} ${result.label}`))
+          },
+        })
+      }
+      catch (error) {
+        console.error(chalk.red('\n❌ Remote actions failed:'), error)
+        process.exit(1)
+      }
+    }
+  }
+
   // ── Cleanup ─────────────────────────────────────────────────────────────
   if (!keepLocal) {
     try {
@@ -184,4 +245,41 @@ export async function deployHandler(argv: ArgumentsCamelCase): Promise<void> {
   }
 
   console.log()
+}
+
+function normalizeCommandList(value: string[] | string | undefined): string[] {
+  if (!value)
+    return []
+  if (Array.isArray(value))
+    return value.map(v => v.trim()).filter(Boolean)
+  const trimmed = value.trim()
+  return trimmed ? [trimmed] : []
+}
+
+function normalizePathList(value: string[] | string | undefined): string[] {
+  if (!value)
+    return []
+  if (Array.isArray(value))
+    return value.map(v => v.trim()).filter(Boolean)
+  const trimmed = value.trim()
+  if (!trimmed)
+    return []
+  return trimmed.split(',').map(v => v.trim()).filter(Boolean)
+}
+
+async function resolvePostScriptUploads(paths: string[], remoteBase: string): Promise<RemoteUpload[]> {
+  if (paths.length === 0)
+    return []
+  const base = remoteBase.replace(/\/$/, '')
+  const uploads = []
+  for (const localPath of paths) {
+    const exists = await fs.pathExists(localPath)
+    if (!exists) {
+      console.error(chalk.red(`\n❌ Post script not found: ${localPath}`))
+      process.exit(1)
+    }
+    const remotePath = `${base}/${basename(localPath)}`
+    uploads.push({ localPath, remotePath, mode: 0o755 })
+  }
+  return uploads
 }

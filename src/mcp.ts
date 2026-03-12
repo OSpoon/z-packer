@@ -1,6 +1,7 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import type { RemoteUpload } from './remote'
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import process from 'node:process'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
@@ -9,6 +10,7 @@ import fs from 'fs-extra'
 import { z } from 'zod'
 import { compress, scan } from './compress'
 import { generateConfigTemplate, loadConfig } from './config'
+import { buildRemoteSteps, runRemoteCommands } from './remote'
 import { upload } from './upload'
 
 console.error('[z-packer] MCP script loading...')
@@ -178,7 +180,7 @@ server.registerTool(
   {
     description: [
       'Compress the project into an archive and upload it to a remote server over SSH/SFTP in one step.',
-      'This tool automatically: (1) packs the project into an archive; (2) uploads it to the remote server; (3) deletes the local archive unless keepLocal is true.',
+      'This tool automatically: (1) packs the project into an archive; (2) uploads it to the remote server; (3) optionally runs postCommands and postScripts; (4) deletes the local archive unless keepLocal is true.',
       'Use this when the user wants to deploy their project to a server.',
       'IMPORTANT: either "password" or "privateKeyPath" must be provided for SSH authentication.',
       'Call z_packer_get_config first to check if SSH credentials are already stored in .zpackerrc.',
@@ -209,6 +211,12 @@ server.registerTool(
       ),
       remotePath: z.string().default('/tmp').describe(
         'Absolute path to the directory on the remote server where the archive will be uploaded.',
+      ),
+      postCommands: z.array(z.string()).optional().describe(
+        'Remote commands to run after upload. Supports {{remoteFile}} and {{remoteDir}}.',
+      ),
+      postScripts: z.array(z.string()).optional().describe(
+        'Local script paths to upload and execute after upload.',
       ),
       keepLocal: z.boolean().default(false).describe(
         'If true, the local archive is kept after a successful upload. If false (default), it is deleted.',
@@ -243,6 +251,25 @@ server.registerTool(
         remotePath: args.remotePath,
       })
 
+      // 4. Post-upload remote commands (optional)
+      const postScriptUploads = await resolvePostScriptUploads(args.postScripts ?? [], args.remotePath)
+      const steps = buildRemoteSteps({
+        remoteFile: uploadResult.remoteFile,
+        postCommands: args.postCommands,
+        postScripts: postScriptUploads,
+      })
+      if (steps.length > 0) {
+        await runRemoteCommands({
+          host: args.host,
+          port: args.port,
+          username: args.username,
+          password: args.password,
+          privateKey,
+          uploads: postScriptUploads,
+          steps,
+        })
+      }
+
       // 4. Cleanup
       if (!args.keepLocal) {
         await fs.remove(localFilePath)
@@ -251,7 +278,7 @@ server.registerTool(
       return {
         content: [{
           type: 'text',
-          text: `Deployment successful!\nRemote file: ${uploadResult.remoteFile}\nLocal archive ${args.keepLocal ? 'kept' : 'removed'}.`,
+          text: `Deployment successful!\nRemote file: ${uploadResult.remoteFile}\nLocal archive ${args.keepLocal ? 'kept' : 'removed'}.\nPost actions executed: ${steps.length}`,
         }],
       }
     }
@@ -269,4 +296,19 @@ export async function startServer(): Promise<void> {
   const transport = new StdioServerTransport()
   await server.connect(transport)
   console.error('z-packer MCP server running on stdio')
+}
+
+async function resolvePostScriptUploads(paths: string[], remoteBase: string): Promise<RemoteUpload[]> {
+  if (paths.length === 0)
+    return []
+  const base = remoteBase.replace(/\/$/, '')
+  const uploads = []
+  for (const localPath of paths) {
+    const exists = await fs.pathExists(localPath)
+    if (!exists)
+      throw new Error(`Post script not found: ${localPath}`)
+    const remotePath = `${base}/${basename(localPath)}`
+    uploads.push({ localPath, remotePath, mode: 0o755 })
+  }
+  return uploads
 }

@@ -11,6 +11,10 @@ export interface ZPackerConfig {
   /** Path to SSH private key file, supports ~ expansion */
   privateKey?: string
   remotePath?: string
+  /** Additional remote command(s) to run after deploy */
+  postCommands?: string
+  /** Local script path(s) to upload and execute on the remote server */
+  postScripts?: string
   keepLocal?: boolean
   readyTimeout?: number
   format?: 'zip' | 'tar' | 'tar.gz'
@@ -73,6 +77,8 @@ function castConfig(raw: Record<string, string>, filePath: string): ZPackerConfi
     'password',
     'privateKey',
     'remotePath',
+    'postCommands',
+    'postScripts',
     'keepLocal',
     'readyTimeout',
     'format',
@@ -177,6 +183,12 @@ export function generateConfigTemplate(): string {
     '',
     '# Remote directory to upload the archive into (default: /tmp)',
     '# remotePath=/home/deploy/releases',
+    '',
+    '# Additional remote command(s) after deploy (supports {{remoteFile}}, {{remoteDir}})',
+    '# postCommands=rm -f {{remoteFile}}',
+    '',
+    '# Local script path(s) to upload and execute (comma-separated if multiple)',
+    '# postScripts=./deploy.sh,./restart.sh',
     '',
     '# Archive format: zip | tar | tar.gz (default: zip)',
     '# format=tar.gz',
